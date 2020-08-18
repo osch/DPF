@@ -70,6 +70,22 @@ vst        = $(TARGET_DIR)/$(NAME)-vst$(LIB_EXT)
 # ---------------------------------------------------------------------------------------------------------------------
 # Handle UI stuff, disable UI support automatically
 
+# The following variables have extended meaning if UI_TYPE == otherui 
+# is used instead of DGL:
+#
+#   HAVE_DGL  - true if PluginUI is to be build
+#   DGL_FLAGS - Compile flags for PluginUI
+#   DGL_LIB   - Static libraries that are set as dependencies for PluginUI
+#   DGL_LIBS  - System library link options for PluginUI
+#
+ifeq ($(UI_TYPE),otherui)
+ HAVE_DGL         = true
+ DGL_FLAGS       += $(OTHERUI_FLAGS)
+ DGL_LIB         += $(OTHERUI_LIBS)
+ DGL_LIBS        += $(OTHERUI_SYSTEM_LIBS)
+endif
+
+
 ifeq ($(FILES_UI),)
 UI_TYPE = none
 endif

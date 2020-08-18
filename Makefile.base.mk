@@ -4,6 +4,8 @@
 # Created by falkTX
 #
 
+DPF_MAKEFILE_BASE_INCLUDED := true
+
 AR  ?= ar
 CC  ?= gcc
 CXX ?= g++

@@ -19,31 +19,7 @@
 
 #include "../DistrhoUI.hpp"
 
-#if DISTRHO_PLUGIN_HAS_EXTERNAL_UI
-# include "../extra/Sleep.hpp"
-using DGL_NAMESPACE::IdleCallback;
-#else
-# include "../../dgl/Application.hpp"
-# include "../../dgl/Window.hpp"
-using DGL_NAMESPACE::Application;
-using DGL_NAMESPACE::IdleCallback;
-using DGL_NAMESPACE::Window;
-#endif
-
-START_NAMESPACE_DISTRHO
-
-// -----------------------------------------------------------------------
-// Static data, see DistrhoUI.cpp
-
-extern double      d_lastUiSampleRate;
-extern void*       d_lastUiDspPtr;
-#if DISTRHO_PLUGIN_HAS_EXTERNAL_UI
-extern const char* g_nextBundlePath;
-extern double      g_nextScaleFactor;
-extern uintptr_t   g_nextWindowId;
-#else
-extern Window*     d_lastUiWindow;
-#endif
+START_NAMESPACE_DISTRHO // {
 
 // -----------------------------------------------------------------------
 // UI callbacks
@@ -56,12 +32,71 @@ typedef void (*setSizeFunc)     (void* ptr, uint width, uint height);
 typedef bool (*fileRequestFunc) (void* ptr, const char* key);
 
 // -----------------------------------------------------------------------
+// Static data, see DistrhoUI.cpp
+
+extern double      d_lastUiSampleRate;
+extern void*       d_lastUiDspPtr;
+
+// -----------------------------------------------------------------------
+
+static inline uint32_t PARAMETER_OFFSET() {
+    uint32_t parameterOffset = 0;
+#if defined(DISTRHO_PLUGIN_TARGET_DSSI) || defined(DISTRHO_PLUGIN_TARGET_LV2)
+        parameterOffset += DISTRHO_PLUGIN_NUM_INPUTS + DISTRHO_PLUGIN_NUM_OUTPUTS;
+# if DISTRHO_PLUGIN_WANT_LATENCY
+        parameterOffset += 1;
+# endif
+#endif
+
+#ifdef DISTRHO_PLUGIN_TARGET_LV2
+# if (DISTRHO_PLUGIN_IS_SYNTH || DISTRHO_PLUGIN_WANT_TIMEPOS || DISTRHO_PLUGIN_WANT_STATE)
+        parameterOffset += 1;
+#  if DISTRHO_PLUGIN_WANT_STATE
+        parameterOffset += 1;
+#  endif
+# endif
+#endif
+    return parameterOffset;
+}
+
+END_NAMESPACE_DISTRHO // }
+
+
+#if !DISTRHO_UI_USE_OTHERUI // {
+
+
+#if DISTRHO_PLUGIN_HAS_EXTERNAL_UI
+# include "../extra/Sleep.hpp"
+using DGL_NAMESPACE::IdleCallback;
+#else
+# include "../../dgl/Application.hpp"
+# include "../../dgl/Window.hpp"
+using DGL_NAMESPACE::Application;
+using DGL_NAMESPACE::IdleCallback;
+using DGL_NAMESPACE::Window;
+#endif
+
+START_NAMESPACE_DISTRHO // {
+
+// -----------------------------------------------------------------------
+// Static data, see DistrhoUI.cpp
+
+#if DISTRHO_PLUGIN_HAS_EXTERNAL_UI
+extern const char* g_nextBundlePath;
+extern double      g_nextScaleFactor;
+extern uintptr_t   g_nextWindowId;
+#else
+extern Window*     d_lastUiWindow;
+#endif
+
+
+// -----------------------------------------------------------------------
 // UI private data
 
 struct UI::PrivateData {
     // DSP
     double   sampleRate;
-    uint32_t parameterOffset;
+    const uint32_t parameterOffset;
 #if DISTRHO_PLUGIN_WANT_DIRECT_ACCESS
     void*    dspPtr;
 #endif
@@ -85,7 +120,7 @@ struct UI::PrivateData {
 
     PrivateData() noexcept
         : sampleRate(d_lastUiSampleRate),
-          parameterOffset(0),
+          parameterOffset(PARAMETER_OFFSET()),
 #if DISTRHO_PLUGIN_WANT_DIRECT_ACCESS
           dspPtr(d_lastUiDspPtr),
 #endif
@@ -104,22 +139,6 @@ struct UI::PrivateData {
           fileRequestCallbackFunc(nullptr)
     {
         DISTRHO_SAFE_ASSERT(d_isNotZero(sampleRate));
-
-#if defined(DISTRHO_PLUGIN_TARGET_DSSI) || defined(DISTRHO_PLUGIN_TARGET_LV2)
-        parameterOffset += DISTRHO_PLUGIN_NUM_INPUTS + DISTRHO_PLUGIN_NUM_OUTPUTS;
-# if DISTRHO_PLUGIN_WANT_LATENCY
-        parameterOffset += 1;
-# endif
-#endif
-
-#ifdef DISTRHO_PLUGIN_TARGET_LV2
-# if (DISTRHO_PLUGIN_IS_SYNTH || DISTRHO_PLUGIN_WANT_TIMEPOS || DISTRHO_PLUGIN_WANT_STATE)
-        parameterOffset += 1;
-#  if DISTRHO_PLUGIN_WANT_STATE
-        parameterOffset += 1;
-#  endif
-# endif
-#endif
     }
 
     void editParamCallback(const uint32_t rindex, const bool started)
@@ -612,6 +631,57 @@ private:
 
 // -----------------------------------------------------------------------
 
-END_NAMESPACE_DISTRHO
+END_NAMESPACE_DISTRHO // }
+
+
+#else  // DISTRHO_UI_USE_OTHERUI } {
+
+# ifndef DISTRHO_UI_OTHERUI_EXPORTER_FULL_CLASS_NAME
+#  error DISTRHO_UI_USE_OTHERUI requires DISTRHO_UI_OTHERUI_EXPORTER_FULL_CLASS_NAME
+# endif 
+
+#include DISTRHO_UI_OTHERUI_EXPORTER_INCLUDE
+
+START_NAMESPACE_DISTRHO // {
+
+typedef DISTRHO_UI_OTHERUI_EXPORTER_FULL_CLASS_NAME UIExporterBase;
+
+class UIExporter : public UIExporterBase
+{
+public:
+    UIExporter(void* const callbacksPtr,
+               const intptr_t winId,
+               const editParamFunc editParamCall,
+               const setParamFunc setParamCall,
+               const setStateFunc setStateCall,
+               const sendNoteFunc sendNoteCall,
+               const setSizeFunc setSizeCall,
+               const fileRequestFunc fileRequestCall,
+               const char* const bundlePath = nullptr,
+               void* const dspPtr = nullptr,
+               const float scaleFactor = 1.0f,
+               const uint32_t bgColor = 0,
+               const uint32_t fgColor = 0xffffffff)
+               
+        : UIExporterBase(PARAMETER_OFFSET(),
+                         callbacksPtr,
+                         winId,
+                         editParamCall,
+                         setParamCall,
+                         setStateCall,
+                         sendNoteCall,
+                         setSizeCall,
+                         fileRequestCall,
+                         bundlePath,
+                         dspPtr,
+                         scaleFactor,
+                         bgColor,
+                         fgColor)
+    {}
+};
+
+END_NAMESPACE_DISTRHO // }
+
+#endif // DISTRHO_UI_USE_OTHERUI }
 
 #endif // DISTRHO_UI_INTERNAL_HPP_INCLUDED

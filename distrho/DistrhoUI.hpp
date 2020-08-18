@@ -20,6 +20,8 @@
 #include "extra/LeakDetector.hpp"
 #include "src/DistrhoPluginChecks.h"
 
+#if !DISTRHO_UI_USE_OTHERUI // {
+
 #if DISTRHO_PLUGIN_HAS_EXTERNAL_UI
 # include "../dgl/Base.hpp"
 # include "extra/ExternalWindow.hpp"
@@ -295,5 +297,7 @@ extern UI* createUI();
 // -----------------------------------------------------------------------------------------------------------
 
 END_NAMESPACE_DISTRHO
+
+#endif  // !DISTRHO_UI_USE_OTHERUI }
 
 #endif // DISTRHO_UI_HPP_INCLUDED
